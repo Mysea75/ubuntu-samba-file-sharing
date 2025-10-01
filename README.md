@@ -1,6 +1,6 @@
 # 📘 File Sharing Between Ubuntu and Windows 11 Using Samba
 
-This guide will help you (as a student) understand the **basic concept of Samba**, and then walk you through the **step-by-step setup** with commands, configuration, and references. By the end, you’ll be able to transfer files easily between your Ubuntu desktop and Windows 11 laptop on the same network.
+This guide will help you (as a student) understand the **basic concept of Samba**, and then walk you through the **step-by-step setup** with commands, configuration, reset instructions, and references. By the end, you’ll be able to transfer files easily between your Ubuntu desktop and Windows 11 laptop on the same network.
 
 ---
 
@@ -30,22 +30,30 @@ sudo apt update
 sudo apt install samba -y
 ```
 
-### Step 2: Backup and Reset Config (optional)
+### Step 2: Reset Samba to Default (if needed)
+
+If Samba was previously configured and you want a clean reset:
 
 ```bash
 sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.backup
 sudo cp /usr/share/samba/smb.conf /etc/samba/smb.conf
 ```
 
-### Step 3: Edit Samba Config
+*(On some systems the default file is `/usr/share/samba/smb.conf.default`)*
 
-Open config file:
+Restart services:
+
+```bash
+sudo systemctl restart smbd nmbd
+```
+
+### Step 3: Edit Samba Config
 
 ```bash
 sudo nano /etc/samba/smb.conf
 ```
 
-Use this minimal working configuration:
+Minimal working configuration:
 
 ```ini
 [global]
@@ -66,8 +74,6 @@ Use this minimal working configuration:
    create mask = 0664
    directory mask = 0775
 ```
-
-Save and exit (`CTRL+O`, `Enter`, `CTRL+X`).
 
 ### Step 4: Create Shared Folder
 
@@ -103,8 +109,6 @@ testparm
 
 ### Step 1: Verify Connection
 
-Check if Ubuntu is reachable:
-
 ```powershell
 ping 192.168.31.83
 Test-NetConnection 192.168.31.83 -Port 445
@@ -112,7 +116,7 @@ Test-NetConnection 192.168.31.83 -Port 445
 
 ### Step 2: Access Share
 
-Open **File Explorer** and type:
+Open **File Explorer** → type:
 
 ```
 \\192.168.31.83\UbuntuShare
@@ -120,7 +124,7 @@ Open **File Explorer** and type:
 
 Enter username: `ghulam` and Samba password.
 
-If you prefer the command line, clear any existing mappings and connect directly:
+Or from PowerShell:
 
 ```powershell
 net use * /delete /y
@@ -133,11 +137,7 @@ net use \\192.168.31.83\UbuntuShare /user:ghulam <SambaPassword>
 
 1. Open **This PC** → **Map Network Drive**
 2. Choose drive letter (e.g., Z:)
-3. Enter:
-
-   ```
-   \\192.168.31.83\UbuntuShare
-   ```
+3. Enter `\\192.168.31.83\UbuntuShare`
 4. Check **Reconnect at sign-in**
 5. Provide Samba credentials
 
@@ -145,17 +145,48 @@ net use \\192.168.31.83\UbuntuShare /user:ghulam <SambaPassword>
 
 ---
 
-## 🔹 4. Troubleshooting
+## 🔹 4. Accessing Windows Shares from Ubuntu (Reverse Sharing)
 
-### Common Issues
+### Step 1: Share a Folder in Windows
 
-* **System error 67** → Wrong share name. Must match the config section `[UbuntuShare]` exactly.
+1. Right-click folder → **Properties → Sharing → Advanced Sharing**.
+2. Check **Share this folder** → name it (e.g., `WinShare`).
+3. Set permissions for user `ghulam` (local Windows account).
+4. Ensure NTFS Security tab also grants access.
+
+### Step 2: Connect from Ubuntu
+
+List shares:
+
+```bash
+smbclient -L //192.168.31.244 -U ghulam
+```
+
+Mount share:
+
+```bash
+sudo mkdir -p /mnt/winshare
+sudo mount -t cifs //192.168.31.244/WinShare /mnt/winshare -o username=ghulam,password=YourPassword,vers=3.0
+```
+
+### Step 3: GUI Access
+
+1. Open **Files → Other Locations → Windows Network**.
+2. Select `WORKGROUP` → choose your Windows PC (e.g., `INTLAP-136-Ghulam`).
+3. Enter credentials: username `ghulam`, password = Windows login password.
+
+📌 *Note*: If your Windows account uses a PIN, you must enable password login. Create/set a password in **Settings → Accounts → Sign-in options → Password** and use that.
+
+---
+
+## 🔹 5. Troubleshooting
+
+* **System error 67** → Wrong share name. Must match `[UbuntuShare]` exactly.
 * **Extended error** → Windows blocking guest access. Fix by using Samba users instead of guest.
-* **Permission denied** → Check folder ownership and Samba user permissions.
+* **Permission denied** → Ensure correct folder permissions + Samba user credentials.
+* **Windows not visible in Network** → Use `smb://<PCName>` or bookmark. Modern Windows disables SMB1 discovery, so browsing is unreliable.
 
-### Useful Logs
-
-On Ubuntu, monitor logs while testing:
+Useful logs on Ubuntu:
 
 ```bash
 sudo journalctl -u smbd -f
@@ -163,19 +194,21 @@ sudo journalctl -u smbd -f
 
 ---
 
-## 🔹 5. Summary
+## 🔹 6. Summary
 
 * Samba bridges Linux ↔ Windows file sharing.
-* Always use **SMB2/SMB3** for security.
-* Define a clear share in `/etc/samba/smb.conf`.
-* Use `smbpasswd` to create a Samba password.
-* On Windows, access with `\\IP\ShareName` or map as a drive.
+* Reset config if things break, then reconfigure cleanly.
+* Always use **SMB2/SMB3**.
+* Define shares clearly in `/etc/samba/smb.conf`.
+* Create Samba passwords with `smbpasswd`.
+* For reverse sharing, ensure Windows local account has a real password (not just PIN).
+* Use direct paths (`smb://PCName/Share`) or bookmarks if network browsing fails.
 
-✅ With this setup, you can now drag-and-drop files between your Ubuntu desktop and Windows 11 laptop as if they were on the same OS.
+✅ With this setup, you can now drag-and-drop files between Ubuntu and Windows both ways.
 
 ---
 
-📚 **References for further reading**
+📚 **References**
 
 * [Ubuntu Samba Server Guide](https://ubuntu.com/server/docs/samba-introduction)
 * [Microsoft SMB File Sharing](https://learn.microsoft.com/en-us/windows-server/storage/file-server/file-server-smb-overview)
