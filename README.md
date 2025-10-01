@@ -120,6 +120,13 @@ Open **File Explorer** and type:
 
 Enter username: `ghulam` and Samba password.
 
+If you prefer the command line, clear any existing mappings and connect directly:
+
+```powershell
+net use * /delete /y
+net use \\192.168.31.83\UbuntuShare /user:ghulam <SambaPassword>
+```
+
 📸 *Reference screenshot (Windows run share path)*: ![Run Samba Share](https://www.linuxtechi.com/wp-content/uploads/2020/07/Access-Samba-Share-Windows10.png)
 
 ### Step 3: Map as Network Drive
